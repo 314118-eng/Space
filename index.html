@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHERIA | Futuristic Space Travel Agency</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Syncopate:wght@400;700&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sync:['Syncopate', 'sans-serif'],
+                        space: ['Space Grotesk', 'sans-serif'],
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            black: '#030305',
+                            dark: '#0a0a10',
+                            accent: '#6366f1',
+                            glow: '#a855f7',
+                            light: '#f8fafc'
+                        }
+                    },
+                    backgroundImage: {
+                        'glass': 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Core Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+    <style>
+        :root {
+            --cursor-size: 10px;
+        }
+        
+        body {
+            background-color: #030305;
+            color: #f8fafc;
+            overflow-x: hidden;
+            cursor: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Custom Cursor */
+        #cursor-dot, #cursor-ring {
+            position: fixed;
+            top: 0; left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            mix-blend-mode: difference;
+            transition: width 0.3s, height 0.3s, background-color 0.3s;
+        }
+        #cursor-dot {
+            width: var(--cursor-size);
+            height: var(--cursor-size);
+            background-color: white;
+        }
+        #cursor-ring {
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: all 0.15s ease-out;
+        }
+        .cursor-hover #cursor-ring {
+            width: 80px;
+            height: 80px;
+            background-color: rgba(255,255,255,0.1);
+            border-color: transparent;
+        }
+
+        @media (pointer: coarse) {
+            body { cursor: auto; }
+            #cursor-dot, #cursor-ring { display: none; }
+        }
+
+        /* Global Noise */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.04;
+            background-image: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+        }
+
+        /* WebGL Canvas */
+        #webgl-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+        }
+
+        /* Vertical Grid Lines */
+        .reference-lines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100vh;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: -1;
+            padding: 0 5%;
+        }
+        .line {
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+        }
+
+        /* 4-Column Clip Path System */
+        .hero-col {
+            clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%);
+        }
+        .bg-fixed-parallax {
+            background-attachment: fixed;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(10, 10, 16, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Marquee */
+        .marquee-container {
+            display: flex;
+            white-space: nowrap;
+            overflow: hidden;
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+        .marquee-content {
+            display: flex;
+            animation: marquee 30s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Liquid Wipe Transition Layer */
+        .liquid-wipe {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            transform-origin: bottom;
+            z-index: 10;
+        }
+
+        /* Magnetic Button Glow */
+        .btn-glow::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(45deg, #6366f1, #a855f7, #6366f1);
+            z-index: -1;
+            border-radius: inherit;
+            filter: blur(10px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .btn-glow:hover::before {
+            opacity: 0.6;
+        }
+
+        /* Text Utilities */
+        .text-gradient {
+            background: linear-gradient(to right, #ffffff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .blend-diff {
+            mix-blend-mode: difference;
+        }
+        .number-decor {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.875rem;
+            letter-spacing: 0.2em;
+            color: #6366f1;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-accent selection:text-white">
+
+    <!-- Global Visuals -->
+    <canvas id="webgl-canvas"></canvas>
+    <div class="noise-overlay"></div>
+    <div class="reference-lines">
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+    </div>
+
+    <!-- Custom Cursor -->
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-40 px-6 py-6 mix-blend-difference hover-target">
+        <div class="max-w-[1600px] mx-auto flex justify-between items-center">
+            <div class="font-sync font-bold text-2xl tracking-widest text-white">
+                AETHERIA<span class="text-brand-accent">.</span>
+            </div>
+            <div class="hidden md:flex gap-12 font-space text-sm tracking-wider">
+                <a href="#experience" class="hover:text-brand-accent transition-colors">EXPERIENCE</a>
+                <a href="#vessels" class="hover:text-brand-accent transition-colors">VESSELS</a>
+                <a href="#destinations" class="hover:text-brand-accent transition-colors">DESTINATIONS</a>
+            </div>
+            <button class="magnetic-btn btn-glow relative px-8 py-3 rounded-full bg-white text-black font-space font-semibold text-xs tracking-widest overflow-hidden group">
+                <span class="relative z-10 group-hover:text-white transition-colors duration-300">INITIALIZE LAUNCH</span>
+                <div class="absolute inset-0 bg-brand-accent transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        
+        <!-- HERO SECTION (4-Column Clip) -->
+        <section class="relative h-screen w-full flex items-center justify-center overflow-hidden">
+            <!-- 4 Column Background -->
+            <div class="absolute inset-0 w-full h-full flex z-0" id="hero-columns">
+                <!-- Column 1 -->
+                <div class="hero-col flex-1 h-full relative border-r border-white/5">
+                    <div class="absolute inset-0 bg-fixed-parallax" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072'); filter: brightness(0.7);"></div>
+                </div>
+                <!-- Column 2 -->
+                <div class="hero-col flex-1 h-full relative border-r border-white/5">
+                    <div class="absolute inset-0 bg-fixed-parallax" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072'); filter: brightness(0.7);"></div>
+                </div>
+                <!-- Column 3 -->
+                <div class="hero-col flex-1 h-full relative border-r border-white/5 hidden md:block">
+                    <div class="absolute inset-0 bg-fixed-parallax" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072'); filter: brightness(0.7);"></div>
+                </div>
+                <!-- Column 4 -->
+                <div class="hero-col flex-1 h-full relative hidden md:block">
+                    <div class="absolute inset-0 bg-fixed-parallax" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072'); filter: brightness(0.7);"></div>
+                </div>
+            </div>
+
+            <!-- Hero Text Overlays -->
+            <div class="relative z-10 text-center blend-diff px-4 flex flex-col items-center">
+                <p class="hero-element number-decor mb-6">SYS.001 // ORBITAL DEPARTURE</p>
+                <h1 class="hero-element font-sync text-5xl md:text-8xl lg:text-[9rem] leading-[0.9] font-bold text-white uppercase tracking-tighter">
+                    BEYOND<br>EARTHLY<br>LIMITS
+                </h1>
+                <p class="hero-element font-space text-gray-300 mt-8 max-w-xl mx-auto text-sm md:text-base leading-relaxed tracking-wide">
+                    The premiere futuristic space travel agency. Experience zero-g luxury, warp-speed transit, and pioneering safety standards as you discover the cosmos.
+                </p>
+            </div>
+            
+            <!-- Scroll Indicator -->
+            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50 hero-element">
+                <span class="font-space text-xs tracking-[0.3em]">SCROLL</span>
+                <div class="w-[1px] h-12 bg-gradient-to-b from-white to-transparent"></div>
+            </div>
+        </section>
+
+        <!-- PARTNERS MARQUEE -->
+        <section class="py-12 border-y border-white/10 bg-brand-dark/50 backdrop-blur-md relative z-10">
+            <div class="marquee-container w-full">
+                <div class="marquee-content items-center gap-24 px-12 opacity-60 hover:opacity-100 transition-opacity duration-500 text-3xl">
+                    <!-- Set 1 -->
+                    <iconify-icon icon="simple-icons:spacex" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:tesla" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:nasa" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:nvidia" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:intel" class="text-white hover-target"></iconify-icon>
+                    <span class="font-space text-sm tracking-widest uppercase">Global Propulsion Partners</span>
+                    <!-- Set 2 (Duplicate for infinite scroll) -->
+                    <iconify-icon icon="simple-icons:spacex" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:tesla" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:nasa" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:nvidia" class="text-white hover-target"></iconify-icon>
+                    <iconify-icon icon="simple-icons:intel" class="text-white hover-target"></iconify-icon>
+                    <span class="font-space text-sm tracking-widest uppercase">Global Propulsion Partners</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- VALUE PROPOSITION (Interaction Pro & Glassmorphism) -->
+        <section id="experience" class="relative py-32 px-6 max-w-[1600px] mx-auto z-10">
+            <div class="flex flex-col md:flex-row gap-16 md:gap-8 items-start">
+                
+                <div class="md:w-1/3 sticky top-32 pr-8">
+                    <h2 class="font-sync text-4xl md:text-5xl lg:text-6xl font-bold uppercase leading-tight">
+                        Redefining<br><span class="text-gradient">Existence</span>
+                    </h2>
+                    <p class="font-space text-gray-400 mt-6 leading-relaxed">
+                        Transition from terrestrial bounds to cosmic liberation. Our vessels are engineered with cinematic precision and physics-defying comfort.
+                    </p>
+                </div>
+
+                <div class="md:w-2/3 flex flex-col gap-8 w-full">
+                    <!-- Card 01 -->
+                    <div class="value-card glass-panel rounded-2xl p-8 md:p-12 relative overflow-hidden group hover-target">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-accent/20 rounded-full blur-[80px] -mr-32 -mt-32 transition-all duration-700 group-hover:bg-brand-glow/30"></div>
+                        <div class="flex justify-between items-start mb-16 relative z-10">
+                            <span class="number-decor">01</span>
+                            <iconify-icon icon="solar:planet-3-line-duotone" class="text-4xl text-brand-accent"></iconify-icon>
+                        </div>
+                        <h3 class="font-sync text-2xl mb-4 relative z-10">ZERO-G LUXURY</h3>
+                        <p class="font-space text-gray-400 relative z-10 w-full md:w-4/5">
+                            Drift in absolute opulence. Our habitations feature kinetic stabilizers and smart-glass observatories, turning the void of space into a panoramic masterpiece.
+                        </p>
+                    </div>
+
+                    <!-- Card 02 -->
+                    <div class="value-card glass-panel rounded-2xl p-8 md:p-12 relative overflow-hidden group hover-target">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-accent/20 rounded-full blur-[80px] -mr-32 -mt-32 transition-all duration-700 group-hover:bg-brand-glow/30"></div>
+                        <div class="flex justify-between items-start mb-16 relative z-10">
+                            <span class="number-decor">02</span>
+                            <iconify-icon icon="solar:routing-3-line-duotone" class="text-4xl text-brand-accent"></iconify-icon>
+                        </div>
+                        <h3 class="font-sync text-2xl mb-4 relative z-10">WARP-SPEED TRANSIT</h3>
+                        <p class="font-space text-gray-400 relative z-10 w-full md:w-4/5">
+                            Powered by theoretical physics brought to life. Reach Martian orbit in days, not months. Time is subjective; we make it yours.
+                        </p>
+                    </div>
+
+                    <!-- Card 03 -->
+                    <div class="value-card glass-panel rounded-2xl p-8 md:p-12 relative overflow-hidden group hover-target">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-brand-accent/20 rounded-full blur-[80px] -mr-32 -mt-32 transition-all duration-700 group-hover:bg-brand-glow/30"></div>
+                        <div class="flex justify-between items-start mb-16 relative z-10">
+                            <span class="number-decor">03</span>
+                            <iconify-icon icon="solar:shield-check-line-duotone" class="text-4xl text-brand-accent"></iconify-icon>
+                        </div>
+                        <h3 class="font-sync text-2xl mb-4 relative z-10">PIONEERING SAFETY</h3>
+                        <p class="font-space text-gray-400 relative z-10 w-full md:w-4/5">
+                            Absolute security in the absolute zero. Redundant bio-mesh shielding and AI-driven navigation ensure your journey is as safe as a heartbeat.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VISUAL SHOWCASE (Liquid Parallax & 4-Column Image Reveal) -->
+        <section id="destinations" class="relative py-32 z-10">
+            <div class="max-w-[1600px] mx-auto px-6 mb-16">
+                <span class="number-decor block mb-4">SYS.002 // DESTINATIONS</span>
+                <h2 class="font-sync text-5xl md:text-7xl font-bold uppercase">The Martian<br>Riviera</h2>
+            </div>
+            
+            <div class="w-full h-[70vh] relative overflow-hidden showcase-container hover-target">
+                <!-- Liquid Wipe Element for scroll reveal -->
+                <div class="liquid-wipe"></div>
+                
+                <div class="absolute inset-0 bg-fixed-parallax transition-transform duration-1000 scale-105 hover:scale-100" 
+                     style="background-image: url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=2000');">
+                </div>
+                
+                <div class="absolute inset-0 bg-gradient-to-t from-brand-black via-transparent to-transparent"></div>
+                
+                <div class="absolute bottom-10 left-10 md:left-20 z-20">
+                    <p class="font-space text-brand-accent tracking-[0.2em] mb-2 text-sm">SECTOR 4</p>
+                    <p class="font-sync text-3xl md:text-5xl text-white">OLYMPUS MONS</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER / CTA -->
+        <footer class="relative py-32 overflow-hidden z-10 border-t border-white/10 mt-20">
+            <!-- Background Image with deep overlay -->
+            <div class="absolute inset-0 bg-cover bg-center opacity-20" style="background-image: url('https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?q=80&w=2000'); filter: grayscale(100%);"></div>
+            
+            <div class="relative z-10 max-w-[1600px] mx-auto px-6 text-center">
+                <h2 class="font-sync text-5xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter mb-8 text-transparent" style="-webkit-text-stroke: 1px rgba(255,255,255,0.8);">
+                    BOOK YOUR
+                </h2>
+                <h2 class="font-sync text-5xl md:text-8xl lg:text-9xl font-bold uppercase tracking-tighter mb-16 text-white drop-shadow-[0_0_30px_rgba(99,102,241,0.5)]">
+                    ORBIT
+                </h2>
+                
+                <button class="magnetic-btn btn-glow relative px-12 py-5 rounded-full bg-white text-black font-space font-bold text-sm tracking-[0.2em] overflow-hidden group hover-target inline-block">
+                    <span class="relative z-10 group-hover:text-white transition-colors duration-300">REQUEST DOSSIER</span>
+                    <div class="absolute inset-0 bg-brand-accent transform translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+                </button>
+            </div>
+
+            <div class="relative z-10 max-w-[1600px] mx-auto px-6 mt-32 flex flex-col md:flex-row justify-between items-center border-t border-white/10 pt-8 font-space text-xs text-gray-500 tracking-widest">
+                <p>&copy; 2026 AETHERIA SPACE CORP. ALL RIGHTS RESERVED.</p>
+                <div class="flex gap-6 mt-4 md:mt-0">
+                    <a href="#" class="hover:text-white transition-colors hover-target">TERMS</a>
+                    <a href="#" class="hover:text-white transition-colors hover-target">PRIVACY</a>
+                    <a href="#" class="hover:text-white transition-colors hover-target">ENCRYPTED COMMS</a>
+                </div>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        gsap.registerPlugin(ScrollTrigger);
+
+        // ==========================================
+        // 1. Custom Cursor & Magnetic Interactions
+        // ==========================================
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorRing = document.getElementById('cursor-ring');
+        let mouseX = 0, mouseY = 0;
+        let ringX = 0, ringY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            // Dot follows instantly
+            gsap.set(cursorDot, { x: mouseX, y: mouseY });
+        });
+
+        // Ring follows with slight delay for smooth elastic feel
+        gsap.ticker.add(() => {
+            ringX += (mouseX - ringX) * 0.15;
+            ringY += (mouseY - ringY) * 0.15;
+            gsap.set(cursorRing, { x: ringX, y: ringY });
+        });
+
+        // Hover state for interactive elements
+        const hoverTargets = document.querySelectorAll('.hover-target, a, button');
+        hoverTargets.forEach(target => {
+            target.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+            target.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+        });
+
+        // Magnetic Buttons
+        const magneticBtns = document.querySelectorAll('.magnetic-btn');
+        magneticBtns.forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                
+                gsap.to(btn, {
+                    x: x * 0.4,
+                    y: y * 0.4,
+                    duration: 0.6,
+                    ease: "power3.out"
+                });
+            });
+            
+            btn.addEventListener('mouseleave', () => {
+                gsap.to(btn, {
+                    x: 0,
+                    y: 0,
+                    duration: 0.6,
+                    ease: "elastic.out(1, 0.3)"
+                });
+            });
+        });
+
+        // ==========================================
+        // 2. GSAP Animations (4-Column Clip & Scroll)
+        // ==========================================
+        
+        // Initial Loading Sequence
+        const tlLoad = gsap.timeline();
+        
+        // Start columns scaled down and clipped
+        gsap.set('.hero-col', { clipPath: 'polygon(0% 100%, 100% 100%, 100% 100%, 0% 100%)' });
+        
+        tlLoad.to('.hero-col', {
+            clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
+            duration: 1.5,
+            stagger: 0.15,
+            ease: 'power4.inOut'
+        })
+        .from('.hero-element', {
+            y: 50,
+            opacity: 0,
+            duration: 1.2,
+            stagger: 0.1,
+            ease: 'power3.out'
+        }, "-=0.8");
+
+        // Value Cards Scroll Reveal
+        gsap.utils.toArray('.value-card').forEach((card, i) => {
+            gsap.from(card, {
+                scrollTrigger: {
+                    trigger: card,
+                    start: "top 85%",
+                },
+                y: 100,
+                opacity: 0,
+                duration: 1,
+                ease: "power3.out",
+                delay: i * 0.1
+            });
+        });
+
+        // Liquid Wipe Reveal for Showcase
+        gsap.to('.liquid-wipe', {
+            scrollTrigger: {
+                trigger: '.showcase-container',
+                start: "top 70%",
+            },
+            scaleY: 0,
+            duration: 1.5,
+            ease: "expo.inOut"
+        });
+
+        // ==========================================
+        // 3. WebGL Fluid / Liquid Background 
+        // ==========================================
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+        
+        // Handle Resize
+        function resize() {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Shader Material for Deep Space Liquid / Fluid Interaction
+        const vertexShader = `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform float u_time;
+            uniform vec2 u_mouse;
+            uniform vec2 u_resolution;
+            varying vec2 vUv;
+
+            // Simplex noise function
+            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
+            float snoise(vec2 v) {
+                const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+                vec2 i  = floor(v + dot(v, C.yy) );
+                vec2 x0 = v -   i + dot(i, C.xx);
+                vec2 i1;
+                i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+                vec4 x12 = x0.xyxy + C.xxzz;
+                x12.xy -= i1;
+                i = mod289(i);
+                vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+                m = m*m ;
+                m = m*m ;
+                vec3 x = 2.0 * fract(p * C.www) - 1.0;
+                vec3 h = abs(x) - 0.5;
+                vec3 ox = floor(x + 0.5);
+                vec3 a0 = x - ox;
+                m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+                vec3 g;
+                g.x  = a0.x  * x0.x  + h.x  * x0.y;
+                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+                return 130.0 * dot(m, g);
+            }
+
+            void main() {
+                vec2 st = gl_FragCoord.xy / u_resolution.xy;
+                // Aspect ratio correction for mouse distance
+                vec2 aspect = vec2(u_resolution.x/u_resolution.y, 1.0);
+                
+                // Mouse interaction / ripple
+                float dist = distance(st * aspect, u_mouse * aspect);
+                float mouseForce = exp(-dist * 8.0);
+                
+                // Base liquid animation
+                vec2 noisePos = vUv * 3.0 + u_time * 0.05;
+                float n = snoise(noisePos) * 0.5 + 0.5;
+                
+                // Add mouse ripple to uv distortion
+                vec2 distortedUv = vUv + vec2(n * 0.1) + (st - u_mouse) * mouseForce * 0.1 * sin(u_time * 5.0 - dist * 20.0);
+                
+                // Colors (Deep space darks, purple/blue subtle nebulas)
+                vec3 bg = vec3(0.01, 0.01, 0.02);
+                vec3 color1 = vec3(0.05, 0.02, 0.1); // Deep purple
+                vec3 color2 = vec3(0.0, 0.08, 0.15); // Deep cyan/blue
+                
+                // Mix based on moving noise
+                float wave = snoise(distortedUv * 2.0 - u_time * 0.1);
+                vec3 finalColor = mix(bg, color1, smoothstep(0.0, 1.0, wave + 0.5));
+                finalColor = mix(finalColor, color2, smoothstep(0.2, 0.8, snoise(distortedUv * 4.0 + u_time * 0.2)));
+                
+                // Highlight at mouse
+                finalColor += vec3(0.1, 0.05, 0.2) * mouseForce * 0.5;
+
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        const uniforms = {
+            u_time: { value: 0.0 },
+            u_mouse: { value: new THREE.Vector2(0.5, 0.5) },
+            u_resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+        };
+
+        const material = new THREE.ShaderMaterial({
+            vertexShader,
+            fragmentShader,
+            uniforms
+        });
+
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        // Update mouse position for uniform (normalized 0 to 1, flipped Y)
+        document.addEventListener('mousemove', (e) => {
+            uniforms.u_mouse.value.x = e.clientX / window.innerWidth;
+            uniforms.u_mouse.value.y = 1.0 - (e.clientY / window.innerHeight);
+        });
+
+        window.addEventListener('resize', () => {
+            uniforms.u_resolution.value.set(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation Loop
+        const clock = new THREE.Clock();
+        function animate() {
+            uniforms.u_time.value = clock.getElapsedTime();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
